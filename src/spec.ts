@@ -45,6 +45,26 @@ function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === "string");
 }
 
+/**
+ * Require a non-empty list of strings, with a targeted error. A common authoring
+ * trap: an unquoted "key: value" list item parses as a YAML mapping, not a string
+ * — call that out explicitly so the fix (quote the item) is obvious.
+ */
+function assertStringList(v: unknown, id: string, field: string, file: string): asserts v is string[] {
+  if (!Array.isArray(v) || v.length === 0) {
+    throw new SpecError(`scenario \`${id}\` needs at least one \`${field}\` entry`, file);
+  }
+  const i = v.findIndex((x) => typeof x !== "string");
+  if (i >= 0) {
+    const bad = v[i];
+    const hint =
+      bad !== null && typeof bad === "object"
+        ? ` — item #${i + 1} parsed as a YAML mapping; an unquoted ": " does that, so quote the item`
+        : ` — item #${i + 1} is not a string`;
+    throw new SpecError(`scenario \`${id}\` \`${field}\` items must all be strings${hint}`, file);
+  }
+}
+
 /** Parse + validate a specification.yaml from its raw text. `file` is used in error messages. */
 export function parseSpec(text: string, file: string): Spec {
   let doc: unknown;
@@ -111,12 +131,8 @@ export function parseSpec(text: string, file: string): Spec {
       throw new SpecError(`scenario \`${id}\` has invalid \`mode\` (inline|seeded)`, file);
     }
 
-    if (!isStringArray(s.turns) || s.turns.length === 0) {
-      throw new SpecError(`scenario \`${id}\` needs at least one \`turns\` entry`, file);
-    }
-    if (!isStringArray(s.checklist) || s.checklist.length === 0) {
-      throw new SpecError(`scenario \`${id}\` needs at least one \`checklist\` item`, file);
-    }
+    assertStringList(s.turns, id, "turns", file);
+    assertStringList(s.checklist, id, "checklist", file);
 
     const critFlag = s.critical === true || critical.includes(id);
 

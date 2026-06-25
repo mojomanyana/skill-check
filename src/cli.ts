@@ -84,9 +84,20 @@ async function cmdList(args: Args): Promise<void> {
   const skills = discover(root);
   console.log(`skills under ${root}:`);
   for (const s of skills) {
-    console.log(`  ${s.hasSpec ? "●" : "○"} ${s.name}${s.hasSpec ? "" : "  (no spec)"}`);
+    if (!s.hasSpec) {
+      console.log(`  ○ ${s.name}  (no spec)`);
+      continue;
+    }
+    try {
+      const spec = loadSpec(s.specPath);
+      const seeded = spec.scenarios.filter((x) => x.mode === "seeded").length;
+      const seededNote = seeded ? `, ${seeded} seeded` : "";
+      console.log(`  ● ${s.name}  (${spec.scenarios.length} scenarios${seededNote})`);
+    } catch (e) {
+      console.log(`  ✗ ${s.name}  INVALID: ${e instanceof Error ? e.message : e}`);
+    }
   }
-  console.log(`\n● = testable (has tests/specification.yaml) · ○ = no spec yet`);
+  console.log(`\n● = testable · ○ = no spec yet · ✗ = spec present but invalid`);
 }
 
 async function cmdRun(args: Args): Promise<void> {

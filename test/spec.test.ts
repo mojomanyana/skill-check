@@ -130,6 +130,27 @@ scenarios:
     expect(() => parseSpec(bad, "f.yaml")).toThrow(/duplicate.*A1/i);
   });
 
+  test("gives a colon-hazard hint when a checklist item parsed as a YAML mapping", () => {
+    // `- right-sizes: a glance` has an unquoted ": " so YAML parses it as a mapping,
+    // not a string. The error must name the scenario and explain the colon hazard.
+    const bad = `
+skill: x
+judge_persona: p
+ship_bar: {total: 1, min_pass: 1, no_critical_fail: true}
+critical: []
+scenarios:
+  - id: C1
+    title: t
+    turns: ["hi"]
+    checklist:
+      - right-sizes: a glance — fine
+      - this one is a fine string
+`;
+    expect(() => parseSpec(bad, "f.yaml")).toThrow(/C1/);
+    expect(() => parseSpec(bad, "f.yaml")).toThrow(/string/i);
+    expect(() => parseSpec(bad, "f.yaml")).toThrow(/colon|quote/i);
+  });
+
   test("throws when seeded scenario lacks a fixture", () => {
     const bad = `
 skill: x
